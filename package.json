@@ -1,0 +1,21 @@
+{
+  "name": "mario-tennis-web-port",
+  "version": "1.0.0",
+  "description": "Port web de Mario Tennis 64 con multijugador online WebRTC P2P en tiempo real",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "mario-tennis",
+    "n64",
+    "webassembly",
+    "webrtc",
+    "netplay",
+    "multiplayer",
+    "retrogaming"
+  ],
+  "author": "Francisco Arias",
+  "license": "MIT"
+}
