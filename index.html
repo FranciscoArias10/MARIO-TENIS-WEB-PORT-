@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mario Tennis 64 - Web Port & Online Netplay</title>
+  <meta name="description" content="Juega Mario Tennis de Nintendo 64 en el navegador con soporte multijugador online en tiempo real para 2 jugadores mediante WebRTC y WebAssembly.">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Press+Start+2P&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- PeerJS for WebRTC P2P Netplay -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="tennis-theme">
+  <!-- Dynamic Background Particles / Stadium Court Aura -->
+  <div class="stadium-bg-glow"></div>
+  <div class="court-grid-lines"></div>
+
+  <!-- Header & Navigation -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="logo-group">
+        <div class="n64-badge">
+          <span class="n64-icon">N64</span>
+        </div>
+        <div class="title-meta">
+          <h1 class="main-title">MARIO TENNIS <span class="badge-port">WEB PORT</span></h1>
+          <p class="subtitle">Emulación WebAssembly & Multijugador Online P2P</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Netplay Status Pill -->
+        <div id="netplay-status-pill" class="status-pill status-offline">
+          <span class="status-dot"></span>
+          <span id="netplay-status-text">Modo Local</span>
+        </div>
+
+        <!-- Audio Toggle -->
+        <button id="btn-toggle-audio" class="icon-btn" title="Alternar Sonidos UI" aria-label="Alternar Sonidos UI">
+          <span class="btn-icon">🔊</span>
+        </button>
+
+        <!-- Fullscreen Toggle -->
+        <button id="btn-fullscreen" class="icon-btn" title="Pantalla Completa" aria-label="Pantalla Completa">
+          <span class="btn-icon">⛶</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Application Container -->
+  <main class="app-main">
+    <div class="main-grid">
+      
+      <!-- Left / Center: Game Arena Section -->
+      <section class="game-arena-wrapper">
+        <div class="arena-frame" id="arena-frame">
+          
+          <!-- Stadium Lighting & CRT Overlay -->
+          <div class="crt-scanlines hidden" id="crt-overlay"></div>
+          
+          <!-- Netplay Live Overlay Badge -->
+          <div class="arena-hud-bar" id="arena-hud">
+            <div class="hud-player hud-p1">
+              <span class="player-dot p1-color"></span>
+              <span class="player-name" id="hud-p1-name">P1: Mario (Host)</span>
+              <span class="player-badge">LOCAL</span>
+            </div>
+            <div class="hud-center-info">
+              <span id="hud-netplay-ping" class="ping-badge hidden">Ping: <strong id="ping-val">0</strong> ms</span>
+              <span id="hud-fps" class="fps-badge">60 FPS</span>
+            </div>
+            <div class="hud-player hud-p2">
+              <span class="player-dot p2-color"></span>
+              <span class="player-name" id="hud-p2-name">P2: Luigi (Esperando...)</span>
+              <span class="player-badge" id="hud-p2-badge">ONLINE</span>
+            </div>
+          </div>
+
+          <!-- Emulator Viewport -->
+          <div class="viewport-container" id="viewport-container">
+            <!-- Canvas container for EmulatorJS -->
+            <div id="emulator-game-container" class="emulator-view"></div>
+
+            <!-- WebRTC Guest Remote Video Stream (for Player 2) -->
+            <video id="guest-remote-video" class="guest-video-stream hidden" autoplay playsinline></video>
+
+            <!-- Welcome / ROM Selector Overlay -->
+            <div class="arena-overlay" id="arena-start-overlay">
+              <div class="overlay-card">
+                <div class="tennis-ball-icon-bounce">🎾</div>
+                <h2 class="overlay-title">Copa Champiñón Online</h2>
+                <p class="overlay-desc">Carga tu copia de <strong>Mario Tennis (N64)</strong> para iniciar o únete a una partida con un amigo por internet.</p>
+                
+                <div class="rom-dropzone" id="rom-dropzone">
+                  <input type="file" id="rom-file-input" accept=".z64,.n64,.v64" class="file-input-hidden">
+                  <div class="dropzone-content">
+                    <span class="dropzone-icon">📁</span>
+                    <p class="dropzone-prompt"><strong>Arrastra aquí tu ROM (.z64, .n64)</strong> o haz clic para explorar</p>
+                    <span class="dropzone-hint">Compatible con Mario Tennis (USA, EUR, JAP)</span>
+                  </div>
+                </div>
+
+                <div class="quick-action-buttons">
+                  <button id="btn-quick-host" class="btn btn-primary">
+                    <span class="btn-emoji">🏆</span> Crear Sala Online (Host P1)
+                  </button>
+                  <button id="btn-quick-join" class="btn btn-secondary">
+                    <span class="btn-emoji">🌐</span> Unirse con Código (P2)
+                  </button>
+                  <button id="btn-quick-local" class="btn btn-tertiary">
+                    <span class="btn-emoji">🎮</span> Jugar Local 1 vs 1
+                  </button>
+                </div>
+
+                <div id="rom-status-banner" class="rom-status-banner hidden">
+                  <span class="rom-status-icon">✓</span>
+                  <span id="rom-status-text">ROM Cargada en memoria</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Virtual Touch Controller (Mobile / Touch screens) -->
+            <div class="touch-controller-layer hidden" id="touch-controls">
+              <!-- Joystick izquierdo -->
+              <div class="touch-joystick-zone" id="touch-stick-zone">
+                <div class="touch-stick-base">
+                  <div class="touch-stick-thumb" id="touch-stick-thumb"></div>
+                </div>
+              </div>
+              <!-- Botones derechos: A, B, Z, R -->
+              <div class="touch-buttons-grid">
+                <button class="touch-btn touch-btn-b" data-key="KeyX" id="touch-btn-b">B (Slice)</button>
+                <button class="touch-btn touch-btn-a" data-key="KeyC" id="touch-btn-a">A (Topspin)</button>
+                <button class="touch-btn touch-btn-z" data-key="KeyZ" id="touch-btn-z">Z (Lob)</button>
+                <button class="touch-btn touch-btn-r" data-key="KeyV" id="touch-btn-r">R</button>
+                <button class="touch-btn touch-btn-start" data-key="Enter" id="touch-btn-start">START</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Arena Bottom Quick Bar -->
+          <div class="arena-footer-bar">
+            <div class="footer-control-info">
+              <span class="control-tag">Mando 1: <strong id="p1-device-label">Teclado / Gamepad</strong></span>
+              <span class="control-tag">Mando 2: <strong id="p2-device-label">Red WebRTC / Esperando</strong></span>
+            </div>
+            <div class="footer-action-buttons">
+              <button id="btn-toggle-touch" class="btn-sm" title="Alternar Mandos Táctiles">📱 Táctil</button>
+              <button id="btn-toggle-crt" class="btn-sm" title="Alternar Filtro CRT">📺 Filtro CRT</button>
+              <button id="btn-restart-game" class="btn-sm btn-danger-soft" title="Reiniciar Partida">🔄 Reiniciar</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Side: Dashboard Tabs (Multiplayer, Controls, Roster, Settings) -->
+      <aside class="dashboard-panel">
+        
+        <!-- Tab Navigation -->
+        <nav class="tabs-nav" role="tablist">
+          <button class="tab-btn active" data-tab="tab-netplay" role="tab" id="tab-btn-netplay">
+            <span class="tab-icon">🌐</span> Online
+          </button>
+          <button class="tab-btn" data-tab="tab-controls" role="tab" id="tab-btn-controls">
+            <span class="tab-icon">🎮</span> Controles
+          </button>
+          <button class="tab-btn" data-tab="tab-roster" role="tab" id="tab-btn-roster">
+            <span class="tab-icon">🎾</span> Canchas & Guía
+          </button>
+          <button class="tab-btn" data-tab="tab-settings" role="tab" id="tab-btn-settings">
+            <span class="tab-icon">⚙️</span> Ajustes
+          </button>
+        </nav>
+
+        <!-- Tab 1: Netplay / Multijugador Online -->
+        <div class="tab-content active" id="tab-netplay" role="tabpanel">
+          <div class="panel-section">
+            <h3 class="section-title">Sala Multijugador Online</h3>
+            <p class="section-desc">Conecta 2 jugadores en tiempo real usando WebRTC P2P con latencia mínima (<50ms).</p>
+
+            <!-- Role Selector Card -->
+            <div class="netplay-mode-cards">
+              <!-- Host Card -->
+              <div class="mode-card" id="mode-card-host">
+                <div class="mode-header">
+                  <span class="mode-badge p1-badge">JUGADOR 1 (HOST)</span>
+                  <h4>Crear Partida</h4>
+                </div>
+                <p>Ejecutas el juego en tu navegador y transmites la partida a tu amigo.</p>
+                <button id="btn-create-room" class="btn btn-primary btn-block">
+                  <span class="btn-icon">⚡</span> Crear Nueva Sala
+                </button>
+              </div>
+
+              <!-- Guest Card -->
+              <div class="mode-card" id="mode-card-guest">
+                <div class="mode-header">
+                  <span class="mode-badge p2-badge">JUGADOR 2 (INVITADO)</span>
+                  <h4>Unirse a Partida</h4>
+                </div>
+                <p>Ingresa el código que te dio el Host para jugar como Jugador 2.</p>
+                <div class="join-input-group">
+                  <input type="text" id="input-room-code" placeholder="Ej: MT-7842" maxlength="20" class="input-text">
+                  <button id="btn-join-room" class="btn btn-secondary">Unirse</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Active Room Info (Hidden until created/joined) -->
+            <div class="room-active-box hidden" id="room-active-box">
+              <div class="room-header-flex">
+                <span class="room-status-badge">SALA ACTIVA</span>
+                <button id="btn-leave-room" class="btn-text-danger">Desconectar</button>
+              </div>
+              <div class="room-code-display">
+                <span class="code-label">Código de Sala:</span>
+                <div class="code-copy-row">
+                  <code id="display-room-code">MT-XXXX</code>
+                  <button id="btn-copy-code" class="btn-sm btn-accent" title="Copiar código">Copiar</button>
+                </div>
+              </div>
+              <div class="room-share-link-row">
+                <button id="btn-copy-invite-link" class="btn btn-outline btn-block">
+                  📋 Copiar Enlace Directo para Amigo
+                </button>
+              </div>
+              <div class="connection-stats-grid">
+                <div class="stat-item">
+                  <span class="stat-name">Estado WebRTC</span>
+                  <span class="stat-value" id="webrtc-state">Conectado</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-name">Ping P2P</span>
+                  <span class="stat-value" id="webrtc-ping">~18 ms</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-name">Rol</span>
+                  <span class="stat-value" id="webrtc-role">Host (P1)</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-name">Paquetes Input</span>
+                  <span class="stat-value" id="webrtc-packets">0</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Chat / Taunts -->
+            <div class="quick-taunts-section">
+              <h4 class="sub-title">Reacciones Rápidas</h4>
+              <div class="taunts-grid">
+                <button class="btn-taunt" data-taunt="🎾 ¡Buen saque!">🎾 ¡Buen saque!</button>
+                <button class="btn-taunt" data-taunt="🔥 ¡Mamma Mia!">🔥 ¡Mamma Mia!</button>
+                <button class="btn-taunt" data-taunt="👏 ¡Punto para mí!">👏 ¡Punto!</button>
+                <button class="btn-taunt" data-taunt="🏆 Game, Set & Match!">🏆 Match Point!</button>
+              </div>
+              <div id="taunts-chat-feed" class="taunts-feed"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Controls & Gamepads -->
+        <div class="tab-content" id="tab-controls" role="tabpanel">
+          <div class="panel-section">
+            <h3 class="section-title">Configuración de Mandos</h3>
+            <p class="section-desc">Detecta automáticamente mandos de Xbox, PS4/PS5, Switch Pro o configura el teclado.</p>
+
+            <!-- Gamepad Detector Status Cards -->
+            <div class="gamepads-status-deck">
+              <div class="gamepad-slot-card" id="slot-card-p1">
+                <div class="slot-header">
+                  <span class="player-pill p1-pill">JUGADOR 1</span>
+                  <span class="gp-state" id="gp-p1-status">Teclado Activo</span>
+                </div>
+                <div class="gp-device-name" id="gp-p1-name">Teclado Estándar</div>
+              </div>
+              <div class="gamepad-slot-card" id="slot-card-p2">
+                <div class="slot-header">
+                  <span class="player-pill p2-pill">JUGADOR 2</span>
+                  <span class="gp-state" id="gp-p2-status">WebRTC / Teclado Secundario</span>
+                </div>
+                <div class="gp-device-name" id="gp-p2-name">Teclado P2 / Mando Red</div>
+              </div>
+            </div>
+
+            <!-- Visual N64 Mapping Reference -->
+            <div class="controls-mapping-table-wrap">
+              <h4 class="sub-title">Mapeo de Botones Mario Tennis (N64)</h4>
+              <table class="controls-table">
+                <thead>
+                  <tr>
+                    <th>Acción N64</th>
+                    <th>Efecto en Mario Tennis</th>
+                    <th>P1 (Teclado)</th>
+                    <th>P2 (Teclado)</th>
+                    <th>Mando USB</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Botón A</strong></td>
+                    <td>Topspin (Golpe rápido / Rebote alto)</td>
+                    <td><kbd>C</kbd></td>
+                    <td><kbd>K</kbd></td>
+                    <td><span class="btn-badge">A / ✕</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Botón B</strong></td>
+                    <td>Slice (Golpe cortado / Rebote bajo)</td>
+                    <td><kbd>X</kbd></td>
+                    <td><kbd>J</kbd></td>
+                    <td><span class="btn-badge">X / ▢</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Botón Z</strong></td>
+                    <td>Globo defensivo (Lob) / Cancelar</td>
+                    <td><kbd>Z</kbd></td>
+                    <td><kbd>U</kbd></td>
+                    <td><span class="btn-badge">LT / L2</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Botón R</strong></td>
+                    <td>Posición rápida / Golpe plano</td>
+                    <td><kbd>V</kbd></td>
+                    <td><kbd>I</kbd></td>
+                    <td><span class="btn-badge">RB / R1</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Stick Analógico</strong></td>
+                    <td>Moverse por la cancha y dirigir el tiro</td>
+                    <td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td>
+                    <td><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></td>
+                    <td><span class="btn-badge">Stick Izquierdo</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Start</strong></td>
+                    <td>Pausa / Menú</td>
+                    <td><kbd>Enter</kbd></td>
+                    <td><kbd>Numpad Enter</kbd></td>
+                    <td><span class="btn-badge">Start / Options</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="control-actions-row">
+              <button id="btn-test-gamepad" class="btn btn-outline btn-block">
+                🎮 Abrir Probador de Mandos en Vivo
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Roster & Tennis Guide -->
+        <div class="tab-content" id="tab-roster" role="tabpanel">
+          <div class="panel-section">
+            <h3 class="section-title">Personajes & Guía de Golpes</h3>
+            <p class="section-desc">Aprende las combinaciones de tiros y las características de cada tenista.</p>
+
+            <!-- Tennis Shots Cheat Sheet -->
+            <div class="shot-combos-grid">
+              <div class="shot-card">
+                <span class="shot-type">TOPSPIN</span>
+                <span class="shot-combo"><kbd>A</kbd> seguido de <kbd>A</kbd></span>
+                <p>Tiro rápido con efecto hacia adelante. Rebota alto y con fuerza.</p>
+              </div>
+              <div class="shot-card">
+                <span class="shot-type">SLICE</span>
+                <span class="shot-combo"><kbd>B</kbd> seguido de <kbd>B</kbd></span>
+                <p>Efecto cortado con curvatura. La pelota bota bajo y se desliza.</p>
+              </div>
+              <div class="shot-card">
+                <span class="shot-type">GOLPE PLANO (FLAT)</span>
+                <span class="shot-combo"><kbd>A</kbd> + <kbd>B</kbd> a la vez</span>
+                <p>El golpe más rápido del juego, sin efecto y tiro recto profundo.</p>
+              </div>
+              <div class="shot-card">
+                <span class="shot-type">GLOBO (LOB)</span>
+                <span class="shot-combo"><kbd>A</kbd> luego <kbd>B</kbd></span>
+                <p>Pasa la pelota por encima del rival cuando sube a la red.</p>
+              </div>
+              <div class="shot-card">
+                <span class="shot-type">DEJADA (DROP SHOT)</span>
+                <span class="shot-combo"><kbd>B</kbd> luego <kbd>A</kbd></span>
+                <p>Cae justo al lado de la red con bote mínimo.</p>
+              </div>
+              <div class="shot-card">
+                <span class="shot-type">SMASH (REMATE)</span>
+                <span class="shot-combo">Pisar estrella + <kbd>A</kbd></span>
+                <p>Remate imparable cuando la pelota del rival viene bombeada.</p>
+              </div>
+            </div>
+
+            <!-- Character Roster Showcase -->
+            <h4 class="sub-title roster-title">Plantel de Tenistas</h4>
+            <div class="roster-grid" id="roster-grid">
+              <!-- Dynamically rendered or static cards -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Settings -->
+        <div class="tab-content" id="tab-settings" role="tabpanel">
+          <div class="panel-section">
+            <h3 class="section-title">Ajustes de Emulación y Red</h3>
+            
+            <div class="settings-group">
+              <label class="setting-item">
+                <div class="setting-text">
+                  <span class="setting-title">Servidor de Señalización WebRTC</span>
+                  <span class="setting-desc">Servidor P2P para emparejamiento de salas.</span>
+                </div>
+                <select id="select-signaling" class="setting-select">
+                  <option value="peerjs-cloud">PeerJS Cloud (Recomendado / Gratuito)</option>
+                  <option value="custom">Servidor Privado / Local</option>
+                </select>
+              </label>
+
+              <label class="setting-item">
+                <div class="setting-text">
+                  <span class="setting-title">Núcleo N64 WebAssembly</span>
+                  <span class="setting-desc">Mupen64Plus-Next ofrece el mejor balance de velocidad y fidelidad.</span>
+                </div>
+                <select id="select-n64-core" class="setting-select">
+                  <option value="mupen64plus_next">Mupen64Plus-Next (Recomendado)</option>
+                  <option value="parallel-n64">ParaLLEl-N64</option>
+                </select>
+              </label>
+
+              <label class="setting-item">
+                <div class="setting-text">
+                  <span class="setting-title">Tasa de Refresco de Entrada (Netplay Rate)</span>
+                  <span class="setting-desc">Frecuencia de sincronización de inputs por segundo.</span>
+                </div>
+                <select id="select-netplay-hz" class="setting-select">
+                  <option value="60">60 Hz (Óptimo, recomendado)</option>
+                  <option value="120">120 Hz (Ultra baja latencia)</option>
+                  <option value="30">30 Hz (Conexiones inestables)</option>
+                </select>
+              </label>
+
+              <label class="setting-item">
+                <div class="setting-text">
+                  <span class="setting-title">Guardar Partida en el Navegador</span>
+                  <span class="setting-desc">Guarda torneos y copas desbloqueadas en IndexedDB.</span>
+                </div>
+                <button id="btn-clear-save" class="btn-sm btn-danger-soft">Limpiar Datos</button>
+              </label>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+    </div>
+  </main>
+
+  <!-- Live Gamepad Test Modal -->
+  <div class="modal-backdrop hidden" id="gamepad-test-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">🎮 Calibrador de Mandos en Vivo</h3>
+        <button id="btn-close-modal" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Presiona cualquier botón en tus mandos conectados para probar su respuesta en tiempo real:</p>
+        <div id="gamepad-visual-tester" class="gp-tester-area">
+          <div class="gp-test-slots" id="gp-test-slots">
+            <!-- Rendered by gamepad.js -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/gamepad.js"></script>
+  <script src="js/virtual-controller.js"></script>
+  <script src="js/netplay.js"></script>
+  <script src="js/emulator.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
