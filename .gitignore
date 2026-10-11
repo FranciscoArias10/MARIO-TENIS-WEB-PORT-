@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing and build
+dist/
+build/
+.cache/
+
+# Environment variables
+.env
+.env.local
+
+# ROM files (legal compliance, users load their own ROM)
+*.z64
+*.n64
+*.v64
+roms/*.z64
+roms/*.n64
+roms/*.v64
+
+# OS Files
+.DS_Store
+Thumbs.db
