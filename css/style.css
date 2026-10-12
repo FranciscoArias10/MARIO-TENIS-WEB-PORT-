@@ -252,6 +252,20 @@ html, body {
   flex-direction: column;
 }
 
+.arena-frame:fullscreen {
+  border-radius: 0;
+  border: none;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+}
+
+.arena-frame:fullscreen .viewport-container {
+  flex: 1;
+  height: 100%;
+  aspect-ratio: unset;
+}
+
 /* Arena HUD Bar */
 .arena-hud-bar {
   display: flex;
@@ -329,6 +343,8 @@ html, body {
 }
 
 .emulator-view {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
 }
@@ -341,10 +357,13 @@ html, body {
 }
 
 .guest-video-stream {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
   background: #000;
+  z-index: 10;
 }
 
 /* CRT Scanlines Overlay */
@@ -416,70 +435,47 @@ html, body {
   line-height: 1.5;
 }
 
-/* ROM Dropzone */
-.rom-dropzone {
-  position: relative;
-  border: 2px dashed rgba(204, 255, 0, 0.4);
-  border-radius: var(--radius-md);
-  padding: 1.5rem 1rem;
-  cursor: pointer;
-  background: rgba(204, 255, 0, 0.03);
-  transition: all 0.3s ease;
-  margin-bottom: 1.5rem;
+/* Game Boot & Loading Screen */
+.game-boot-card {
+  max-width: 440px;
+  text-align: center;
 }
 
-.rom-dropzone:hover, .rom-dropzone.drag-active {
-  border-color: var(--tennis-neon);
-  background: rgba(204, 255, 0, 0.08);
-  transform: translateY(-2px);
-}
-
-.file-input-hidden {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
+.loading-progress-container {
   width: 100%;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 1.5rem 0 0.75rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.loading-progress-bar {
   height: 100%;
+  width: 25%;
+  background: linear-gradient(90deg, #10b981, #ccff00);
+  border-radius: 999px;
+  transition: width 0.25s ease-out;
+  box-shadow: 0 0 12px rgba(204, 255, 0, 0.6);
 }
 
-.dropzone-icon {
-  font-size: 2rem;
-  display: block;
-  margin-bottom: 0.4rem;
-}
-
-.dropzone-prompt {
-  font-size: 0.95rem;
-  color: var(--text-main);
-  margin-bottom: 0.2rem;
-}
-
-.dropzone-hint {
-  font-size: 0.75rem;
-  color: var(--text-dim);
-}
-
-.rom-status-banner {
-  margin-top: 1rem;
-  background: rgba(34, 197, 94, 0.15);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  color: var(--luigi-green);
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  font-weight: 600;
+.loading-progress-info {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
 }
 
-/* Quick Action Buttons */
-.quick-action-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+.loading-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--tennis-neon);
+  text-transform: uppercase;
 }
 
 /* Arena Bottom Bar */

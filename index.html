@@ -92,37 +92,20 @@
             <!-- WebRTC Guest Remote Video Stream (for Player 2) -->
             <video id="guest-remote-video" class="guest-video-stream hidden" autoplay playsinline></video>
 
-            <!-- Welcome / ROM Selector Overlay -->
+            <!-- Game Boot & Loading Overlay -->
             <div class="arena-overlay" id="arena-start-overlay">
-              <div class="overlay-card">
+              <div class="overlay-card game-boot-card">
                 <div class="tennis-ball-icon-bounce">🎾</div>
-                <h2 class="overlay-title">Copa Champiñón Online</h2>
-                <p class="overlay-desc">Carga tu copia de <strong>Mario Tennis (N64)</strong> para iniciar o únete a una partida con un amigo por internet.</p>
+                <h2 class="overlay-title">Mario Tennis 64</h2>
+                <p class="overlay-desc" id="loading-status-text">Cargando juego desde el servidor...</p>
                 
-                <div class="rom-dropzone" id="rom-dropzone">
-                  <input type="file" id="rom-file-input" accept=".z64,.n64,.v64" class="file-input-hidden">
-                  <div class="dropzone-content">
-                    <span class="dropzone-icon">📁</span>
-                    <p class="dropzone-prompt"><strong>Arrastra aquí tu ROM (.z64, .n64)</strong> o haz clic para explorar</p>
-                    <span class="dropzone-hint">Compatible con Mario Tennis (USA, EUR, JAP)</span>
-                  </div>
+                <!-- Animated Loading Progress Bar -->
+                <div class="loading-progress-container" id="loading-progress-container">
+                  <div class="loading-progress-bar" id="loading-progress-bar" style="width: 25%;"></div>
                 </div>
-
-                <div class="quick-action-buttons">
-                  <button id="btn-quick-host" class="btn btn-primary">
-                    <span class="btn-emoji">🏆</span> Crear Sala Online (Host P1)
-                  </button>
-                  <button id="btn-quick-join" class="btn btn-secondary">
-                    <span class="btn-emoji">🌐</span> Unirse con Código (P2)
-                  </button>
-                  <button id="btn-quick-local" class="btn btn-tertiary">
-                    <span class="btn-emoji">🎮</span> Jugar Local 1 vs 1
-                  </button>
-                </div>
-
-                <div id="rom-status-banner" class="rom-status-banner hidden">
-                  <span class="rom-status-icon">✓</span>
-                  <span id="rom-status-text">ROM Cargada en memoria</span>
+                <div class="loading-progress-info">
+                  <span id="loading-progress-percent">Cargando...</span>
+                  <span class="loading-badge">WebAssembly • 60 FPS</span>
                 </div>
               </div>
             </div>
@@ -208,7 +191,7 @@
                 </div>
                 <p>Ingresa el código que te dio el Host para jugar como Jugador 2.</p>
                 <div class="join-input-group">
-                  <input type="text" id="input-room-code" placeholder="Ej: MT-7842" maxlength="20" class="input-text">
+                  <input type="text" id="input-room-code" placeholder="Ej: 7842" maxlength="10" class="input-text">
                   <button id="btn-join-room" class="btn btn-secondary">Unirse</button>
                 </div>
               </div>
@@ -223,7 +206,7 @@
               <div class="room-code-display">
                 <span class="code-label">Código de Sala:</span>
                 <div class="code-copy-row">
-                  <code id="display-room-code">MT-XXXX</code>
+                  <code id="display-room-code">----</code>
                   <button id="btn-copy-code" class="btn-sm btn-accent" title="Copiar código">Copiar</button>
                 </div>
               </div>
