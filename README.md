@@ -85,12 +85,17 @@ Dominar las combinaciones de botones es la clave para ganar en la cancha:
 ## 🌐 Cómo Jugar Multijugador Online (Paso a Paso)
 
 1. **El Host (Jugador 1)**:
-   - Abre la web y arrastra su archivo ROM de *Mario Tennis* (`.z64` o `.n64`).
+   - Abre la web (la ROM se carga automáticamente desde el servidor web; no necesitas tenerla en tu PC).
    - Hace clic en **"Crear Sala Online (Host P1)"**.
-   - Se generará un código de sala único (ej. `MT-7842`) y un botón para **Copiar Enlace Directo**.
+   - Se generará un código numérico único de sala (ej. `7842`) y un botón para **Copiar Enlace Directo**.
 2. **El Invitado (Jugador 2)**:
    - Abre el enlace directo o introduce el código en la pestaña **Online**.
-   - ¡Listo! En segundos ambos estarán conectados en la misma pista con indicador de ping y chat rápido.
+   - ¡Listo! En segundos ambos estarán conectados en la misma pista con indicador de ping y chat rápido (el invitado tampoco necesita descargar la ROM ya que recibe la transmisión en tiempo real).
+
+---
+
+## 📖 Documentación de Arquitectura y Contexto
+Para conocer a fondo la arquitectura técnica, la estrategia de entrega de la ROM desde el servidor, la pila de tecnologías y el protocolo Netplay P2P, consulta el archivo [PROJECT_CONTEXT.md](file:///home/fkhalil/Desktop/Proyectos/Mario-Tenis-Web-Port/PROJECT_CONTEXT.md).
 
 ---
 
